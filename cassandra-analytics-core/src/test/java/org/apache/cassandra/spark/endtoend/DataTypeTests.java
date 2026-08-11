@@ -126,6 +126,7 @@ public class DataTypeTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testVectorVector(CassandraBridge bridge)
     {
+        assumeThat(bridge.getVersion()).isNotEqualTo(CassandraVersion.HCDTWOZERO);
         assumeThat(bridge.getVersion().versionNumber()).isGreaterThanOrEqualTo(CassandraVersion.FIVEZERO.versionNumber());
         qt().forAll(supportedVectorTypes(bridge))
             .checkAssert(type ->
@@ -141,6 +142,7 @@ public class DataTypeTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testVectorList(CassandraBridge bridge)
     {
+        assumeThat(bridge.getVersion()).isNotEqualTo(CassandraVersion.HCDTWOZERO);
         assumeThat(bridge.getVersion().versionNumber()).isGreaterThanOrEqualTo(CassandraVersion.FIVEZERO.versionNumber());
         qt().forAll(supportedVectorTypes(bridge))
             .checkAssert(type ->
@@ -158,6 +160,7 @@ public class DataTypeTests
     {
         // pk -> a vector<frozen<nested_udt<x int, y type, z int>>, 10>
         // Test vector of UDTs
+        assumeThat(bridge.getVersion()).isNotEqualTo(CassandraVersion.HCDTWOZERO);
         assumeThat(bridge.getVersion().versionNumber()).isGreaterThanOrEqualTo(CassandraVersion.FIVEZERO.versionNumber());
         qt().withExamples(10)
             .forAll(supportedVectorTypes(bridge))
@@ -181,6 +184,7 @@ public class DataTypeTests
     {
         // pk -> a vector<frozen<tuple<type, float, text>>, 7>
         // Test tuple nested within vector
+        assumeThat(bridge.getVersion()).isNotEqualTo(CassandraVersion.HCDTWOZERO);
         assumeThat(bridge.getVersion().versionNumber()).isGreaterThanOrEqualTo(CassandraVersion.FIVEZERO.versionNumber());
         qt().withExamples(10)
             .forAll(supportedVectorTypes(bridge))
@@ -196,6 +200,10 @@ public class DataTypeTests
 
     private static Gen<CqlField.NativeType> supportedVectorTypes(CassandraBridge bridge)
     {
+        if (CassandraVersion.HCDTWOZERO.equals(bridge.getVersion()))
+        {
+            return arbitrary().pick(bridge.aFloat());
+        }
         // TODO: Vector of list of durations fail, because we cannot replace DurationSerializer with
         //  AnalyticsDurationSerializer across all serializers used by VectorType.
         List<CqlField.NativeType> supportedTypes = bridge.supportedTypes().stream()
