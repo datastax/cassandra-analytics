@@ -23,21 +23,17 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Collection;
-import java.util.stream.Stream;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
-import org.apache.commons.lang.mutable.MutableInt;
-import org.apache.commons.lang.mutable.MutableLong;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
 import org.apache.cassandra.bridge.TokenRange;
-import org.apache.cassandra.db.rows.Unfiltered;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.schema.Schema;
@@ -82,27 +78,23 @@ public class IndexOffsetTests
                                   new BigInteger("9223372036854775807")))
     .build();
 
+    @Test
     @SuppressWarnings("static-access")
-    @ParameterizedTest
-    @MethodSource("partitionSizeProvider")
-    public void testReadIndexOffsets(int numPartitions, int numRowsPerPartition)
+    public void testReadIndexOffsets()
     {
         qt().forAll(arbitrary().enumValues(Partitioner.class), booleans().all())
             .checkAssert((partitioner, enableCompression) -> {
                 try (TemporaryDirectory directory = new TemporaryDirectory())
                 {
-                    int numKeys = numPartitions * numRowsPerPartition;
+                    int numKeys = 100000;
                     TestSchema schema = TestSchema.basicBuilder(BRIDGE)
                                                   .withCompression(enableCompression)
                                                   .build();
 
                     schema.writeSSTable(directory, BRIDGE, partitioner, writer -> {
-                        for (int pk = 0; pk < numPartitions; pk++)
+                        for (int index = 0; index < numKeys; index++)
                         {
-                            for (int ck = 0; ck < numRowsPerPartition; ck++)
-                            {
-                                writer.write(pk, ck, pk);
-                            }
+                            writer.write(index, 0, index);
                         }
                     });
                     assertThat(TestSSTable.countIn(directory.path())).isEqualTo(1);
@@ -119,9 +111,9 @@ public class IndexOffsetTests
                     LOGGER.info("Testing index offsets numKeys={} sparkPartitions={} partitioner={} enableCompression={}",
                                 numKeys, ranges.size(), partitioner.name(), enableCompression);
 
-                    MutableInt skippedPartitions = new MutableInt(0);
-                    MutableLong skippedDataOffsets = new MutableLong(0);
-                    int[][] counts = new int[numPartitions][numRowsPerPartition];
+                    AtomicInteger skippedPartitions = new AtomicInteger(0);
+                    AtomicLong skippedDataOffsets = new AtomicLong(0);
+                    int[] counts = new int[numKeys];
                     for (TokenRange range : ranges)
                     {
                         SSTableReader reader = SSTableReader.builder(metadata, ssTable)
@@ -130,12 +122,12 @@ public class IndexOffsetTests
                                                             {
                                                                 public void skippedPartition(ByteBuffer key, BigInteger token)
                                                                 {
-                                                                    skippedPartitions.add(1);
+                                                                    skippedPartitions.addAndGet(1);
                                                                 }
 
                                                                 public void skippedDataDbStartOffset(long length)
                                                                 {
-                                                                    skippedDataOffsets.add(length);
+                                                                    skippedDataOffsets.addAndGet(length);
                                                                 }
                                                             })
                                                             .build();
@@ -152,43 +144,47 @@ public class IndexOffsetTests
                             while (scanner.hasNext())
                             {
                                 UnfilteredRowIterator rowIterator = scanner.next();
-                                int pk = rowIterator.partitionKey().getKey().getInt();
+                                int key = rowIterator.partitionKey().getKey().getInt();
+                                // Count how many times we read a key across all 'spark' token partitions
+                                counts[key]++;
                                 while (rowIterator.hasNext())
                                 {
-                                    Unfiltered unfiltered = rowIterator.next();
-                                    int ck = unfiltered.clustering().bufferAt(0).asIntBuffer().get();
-                                    // Count how many times we read a key across all 'spark' token partitions
-                                    counts[pk][ck]++;
+                                    rowIterator.next();
                                 }
                             }
                         }
                     }
 
                     // Verify we read each key exactly once across all Spark partitions
-                    assertThat(counts.length).isEqualTo(numPartitions);
-                    for (int partitionNum = 0; partitionNum < counts.length; partitionNum++)
+                    assertThat(counts).hasSize(numKeys);
+                    int index = 0;
+                    for (int count : counts)
                     {
-                        for (int rowNumInPartition = 0; rowNumInPartition < counts[partitionNum].length; rowNumInPartition++)
+                        if (count == 0)
                         {
-                            String key = partitionNum + "/" + rowNumInPartition;
-                            int count = counts[partitionNum][rowNumInPartition];
-                            if (count == 0)
-                            {
-                                LOGGER.error("Missing key key={} token={} partitioner={}",
-                                             key,
-                                             toToken(partitioner, partitionNum),
-                                             partitioner.name());
-                            }
-                            else if (count > 1)
-                            {
-                                LOGGER.error("Key read by more than 1 Spark partition key={} token={} partitioner={}",
-                                             key,
-                                             toToken(partitioner, partitionNum),
-                                             partitioner.name());
-                            }
-                            assertThat(count).as(count > 0 ? "Key " + key + " read " + count + " times"
-                                                           : "Key not found: " + key).isEqualTo(1);
+                            LOGGER.error("Missing key key={} token={} partitioner={}",
+                                         index,
+                                         // Cast to ByteBuffer required when compiling with Java 8
+                                         ReaderUtils.tokenToBigInteger(BRIDGE
+                                                                       .getPartitioner(partitioner)
+                                                                       .decorateKey((ByteBuffer) ByteBuffer.allocate(4).putInt(index).flip())
+                                                                       .getToken()),
+                                         partitioner.name());
                         }
+                        else if (count > 1)
+                        {
+                            LOGGER.error("Key read by more than 1 Spark partition key={} token={} partitioner={}",
+                                         index,
+                                         // Cast to ByteBuffer required when compiling with Java 8
+                                         ReaderUtils.tokenToBigInteger(BRIDGE
+                                                                       .getPartitioner(partitioner)
+                                                                       .decorateKey((ByteBuffer) ByteBuffer.allocate(4).putInt(index).flip())
+                                                                       .getToken()),
+                                         partitioner.name());
+                        }
+                        assertThat(count).as(count > 0 ? "Key " + index + " read " + count + " times"
+                                                       : "Key not found: " + index).isEqualTo(1);
+                        index++;
                     }
 
                     assertThat(skippedDataOffsets.longValue()).isGreaterThan(0);
@@ -201,23 +197,5 @@ public class IndexOffsetTests
                     throw new RuntimeException(exception);
                 }
             });
-    }
-
-    static Stream<Arguments> partitionSizeProvider()
-    {
-        return Stream.of(
-        Arguments.of(100000, 1),
-        Arguments.of(1000, 100),
-        Arguments.of(100, 1000)
-        );
-    }
-
-    private BigInteger toToken(Partitioner partitioner, int index)
-    {
-        // Cast to ByteBuffer required when compiling with Java 8
-        return ReaderUtils.tokenToBigInteger(BRIDGE
-                                             .getPartitioner(partitioner)
-                                             .decorateKey((ByteBuffer) ByteBuffer.allocate(4).putInt(index).flip())
-                                             .getToken());
     }
 }

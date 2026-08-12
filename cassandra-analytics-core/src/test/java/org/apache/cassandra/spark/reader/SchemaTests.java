@@ -431,7 +431,6 @@ public class SchemaTests extends VersionRunner
 
         CqlField.CqlMap mapField = (CqlField.CqlMap) ((CqlField.CqlFrozen) fields.get(2).type()).inner();
         assertThat(mapField.keyType()).isEqualTo(bridge.text());
-        // CqlField.CqlFrozen valueType = (CqlField.CqlFrozen) mapField.valueType();
         CqlField.CqlUdt udtField = (CqlField.CqlUdt) mapField.valueType();
         assertThat(udtField.field(0).type()).isEqualTo(bridge.timestamp());
         assertThat(udtField.field(1).type()).isEqualTo(bridge.text());
