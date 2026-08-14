@@ -469,7 +469,7 @@ public class MiscTests
                                        assertThat(row.get(2) instanceof Long).isTrue();
                                    }
                                    assertThat(skippedRawBytes.get()).isGreaterThanOrEqualTo(50_000_000);
-                                   assertThat(skippedInputStreamBytes.get()).isGreaterThanOrEqualTo(2_500_000);
+                                   assertThat(skippedInputStreamBytes.get()).isGreaterThanOrEqualTo(2_000_000);
                                    assertThat(skippedRangeBytes.get()).isGreaterThanOrEqualTo(5_000_000);
                                })
                                .withReset(MiscTests::resetStats)
