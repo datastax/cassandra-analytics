@@ -34,7 +34,7 @@ echo "${DTEST_ARTIFACT_ID}"
 
 ant realclean
 ant dtest-jar -Dno-checkstyle=true
-# DataStax Cassandra artefacts are not published to public Maven repositories
+# DataStax HCD 2.x artefacts are not published to public Maven repositories
 ant mvn-install
 
 # Remove signatures and multi-release classes from dtest JAR

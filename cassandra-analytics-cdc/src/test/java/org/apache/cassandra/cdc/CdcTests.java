@@ -634,7 +634,7 @@ public class CdcTests extends CdcTestBase
     public void testVector(CassandraVersion version)
     {
         assumeThat(bridge.getVersion().versionNumber()).isGreaterThanOrEqualTo(CassandraVersion.FIVEZERO.versionNumber());
-        // DataStax Cassandra supports only vectors of floats.
+        // DataStax HCD 2.x supports only vectors of floats.
         qt().forAll(arbitrary().pick(bridge.aFloat()))
             // Cassandra VectorType does not support swapping custom subtype serializer,
             // so we cannot use AnalyticsTimeUUIDSerializer or AnalyticsDurationSerializer.

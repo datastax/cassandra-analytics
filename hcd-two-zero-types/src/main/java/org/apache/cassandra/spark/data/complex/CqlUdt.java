@@ -206,7 +206,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     @Override
     public Map<String, Object> deserializeUdt(TypeConverter typeConverter, ByteBuffer buffer, boolean isFrozen, boolean isInnerType)
     {
-        // DataStax Cassandra always freezes UDTs inside complex types
+        // DataStax HCD 2.x always freezes UDTs inside complex types
         if (!isInnerType && !isFrozen)
         {
             int fieldCount = buffer.getInt();
