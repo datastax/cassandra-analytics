@@ -34,9 +34,11 @@ fi
 
 echo "Releasing version ${CASSANDRA_ANALYTICS_VERSION} to ${PUBLISH_REPO}"
 
+# Use 'publishToMavenLocal' to publish to local Maven repository
 env maven.repository.url="${PUBLISH_REPO}" maven.username="${M2_USER}" maven.password="${M2_PASS}" bash << 'EOF'
   ./gradlew cassandra-analytics-common:publish -PartifactType=common
   ./gradlew cassandra-analytics-sidecar-client:publish -PartifactType=common
+  ./gradlew analytics-sidecar-vertx-client-shaded:publish -PartifactType=common
 
   for scala_version in '2.12' '2.13'; do
     SCALA_VERSION=${scala_version} ./gradlew cassandra-analytics-spark-converter:publish -PartifactType=spark

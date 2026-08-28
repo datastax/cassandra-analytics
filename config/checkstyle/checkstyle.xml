@@ -47,7 +47,7 @@
     <!-- See https://checkstyle.org/config_header.html        -->
     <module name="RegexpHeader">
         <property name="fileExtensions" value="java" />
-        <property name="header" value="^/\*\n \* (Licensed to the Apache Software Foundation)|(Copyright DataStax, Inc.)" />
+        <property name="header" value="^/\*\n \* (Licensed to the Apache Software Foundation)|(Copyright IBM Corp.)" />
     </module>
     <!-- TODO: Add checks for other file types (xml, properties, gradle, sh) -->
 
