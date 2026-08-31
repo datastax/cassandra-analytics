@@ -40,9 +40,11 @@ env maven.repository.url="${PUBLISH_REPO}" maven.username="${M2_USER}" maven.pas
   ./gradlew cassandra-analytics-sidecar-client:publish -PartifactType=common
   ./gradlew analytics-sidecar-vertx-client-shaded:publish -PartifactType=common
 
-  for scala_version in '2.12' '2.13'; do
-    SCALA_VERSION=${scala_version} ./gradlew cassandra-analytics-spark-converter:publish -PartifactType=spark
-    SCALA_VERSION=${scala_version} ./gradlew cassandra-bridge:publish -PartifactType=spark
-    SCALA_VERSION=${scala_version} ./gradlew cassandra-analytics-core:publish -PartifactType=spark
-  done
+  SCALA_VERSION=2.13 SPARK_VERSION=4 ./gradlew cassandra-analytics-spark-converter:publish -PartifactType=spark
+  SCALA_VERSION=2.13 SPARK_VERSION=4 ./gradlew cassandra-bridge:publish -PartifactType=spark
+  SCALA_VERSION=2.13 SPARK_VERSION=4 ./gradlew cassandra-analytics-core:publish -PartifactType=spark
+
+  SCALA_VERSION=2.12 SPARK_VERSION=3 ./gradlew cassandra-analytics-spark-converter:publish -PartifactType=spark
+  SCALA_VERSION=2.12 SPARK_VERSION=3 ./gradlew cassandra-bridge:publish -PartifactType=spark
+  SCALA_VERSION=2.12 SPARK_VERSION=3 ./gradlew cassandra-analytics-core:publish -PartifactType=spark
 EOF
