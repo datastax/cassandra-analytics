@@ -62,11 +62,16 @@ pipeline {
 
         stage('build') {
             tools {
-                jdk('jdk-11')
+                jdk('jdk-17')
             }
             steps {
                 script {
-                    sh(script:'./scripts/build-analytics.sh')
+                    sh '''
+                        export JAVA_HOME=/opt/java/openjdk17
+                        export PATH=$JAVA_HOME/bin:$PATH
+
+                        ./scripts/build-analytics.sh
+                    '''
                     archiveArtifacts(artifacts: "cassandra-analytics-core/build/libs/*.jar")
                 }
             }
@@ -140,11 +145,16 @@ pipeline {
                 M2_PASS = params.TAAS_TOKEN
             }
             tools {
-                jdk('jdk-11')
+                jdk('jdk-17')
             }
             steps {
                 script {
-                    sh(script:'./scripts/release.sh')
+                    sh '''
+                        export JAVA_HOME=/opt/java/openjdk17
+                        export PATH=$JAVA_HOME/bin:$PATH
+
+                        ./scripts/release.sh
+                    '''
                 }
             }
         }
