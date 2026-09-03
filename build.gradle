@@ -205,7 +205,7 @@ subprojects {
         // on the paired jackson dependency.
         force("com.fasterxml.jackson.module:jackson-module-scala_${scalaMajorVersion}:${jacksonScalaModuleVersion}")
         force("com.fasterxml.jackson.core:jackson-core:${jacksonVersion}")
-        force("com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}")
+        force("com.fasterxml.jackson.core:jackson-annotations:" + project.jacksonVersion.tokenize('.')[0..1].join('.'))
         force("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")
       }
     }

@@ -85,6 +85,12 @@ public class TestTaskContext extends TaskContext
     }
 
     @Override
+    public int numPartitions()
+    {
+        return 0;
+    }
+
+    @Override
     public int attemptNumber()
     {
         return 0;
@@ -100,6 +106,12 @@ public class TestTaskContext extends TaskContext
     public String getLocalProperty(String key)
     {
         return null;
+    }
+
+    @Override
+    public int cpus()
+    {
+        return 1;
     }
 
     public Map<String, ResourceInformation> resources()
