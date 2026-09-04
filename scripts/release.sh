@@ -35,6 +35,7 @@ fi
 echo "Releasing version ${CASSANDRA_ANALYTICS_VERSION} to ${PUBLISH_REPO}"
 
 # Use 'publishToMavenLocal' to publish to local Maven repository
+# With 'includeOssBridges' users can control if bridges for OSS Cassandra versions should be included
 env maven.repository.url="${PUBLISH_REPO}" maven.username="${M2_USER}" maven.password="${M2_PASS}" bash << 'EOF'
   ./gradlew cassandra-analytics-common:publish -PartifactType=common
   ./gradlew cassandra-analytics-sidecar-client:publish -PartifactType=common
@@ -42,9 +43,9 @@ env maven.repository.url="${PUBLISH_REPO}" maven.username="${M2_USER}" maven.pas
 
   SCALA_VERSION=2.13 SPARK_VERSION=4 ./gradlew cassandra-analytics-spark-converter:publish -PartifactType=spark
   SCALA_VERSION=2.13 SPARK_VERSION=4 ./gradlew cassandra-bridge:publish -PartifactType=spark
-  SCALA_VERSION=2.13 SPARK_VERSION=4 ./gradlew cassandra-analytics-core:publish -PartifactType=spark
+  SCALA_VERSION=2.13 SPARK_VERSION=4 ./gradlew cassandra-analytics-core:publish -PartifactType=spark -PincludeOssBridges=false
 
   SCALA_VERSION=2.12 SPARK_VERSION=3 ./gradlew cassandra-analytics-spark-converter:publish -PartifactType=spark
   SCALA_VERSION=2.12 SPARK_VERSION=3 ./gradlew cassandra-bridge:publish -PartifactType=spark
-  SCALA_VERSION=2.12 SPARK_VERSION=3 ./gradlew cassandra-analytics-core:publish -PartifactType=spark
+  SCALA_VERSION=2.12 SPARK_VERSION=3 ./gradlew cassandra-analytics-core:publish -PartifactType=spark -PincludeOssBridges=false
 EOF
