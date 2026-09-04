@@ -59,6 +59,16 @@ configurations {
     fivezeroTypes {
         description = 'Cassandra 5.0 Data Types'
     }
+
+    hcdtwozero {
+        description = 'DataStax HCD 2.0 dependency'
+    }
+    hcdtwozeroBridge {
+        description = 'Bridge to DataStax HCD 2.0'
+    }
+    hcdtwozeroTypes {
+        description = 'DataStax HCD 2.0 Data Types'
+    }
 }
 
 dependencies {
@@ -72,6 +82,10 @@ dependencies {
     fivezeroBridge(project(path: ':cassandra-five-zero-bridge'))
     fivezeroTypes(project(path: ':cassandra-five-zero-types'))
 
+    hcdtwozero(project(path: ':hcd-two-zero', configuration: 'shadow'))
+    hcdtwozeroBridge(project(path: ':hcd-two-zero-bridge'))
+    hcdtwozeroTypes(project(path: ':hcd-two-zero-types'))
+
     implementation project(":cassandra-analytics-common")
     implementation project(':cassandra-analytics-cdc')
     implementation project(":cassandra-analytics-cdc-codec")
@@ -83,7 +97,7 @@ dependencies {
     implementation "org.apache.commons:commons-lang3:${project.commonsLang3Version}"
     implementation "org.slf4j:slf4j-api:${slf4jApiVersion}"
     implementation "com.esotericsoftware:kryo-shaded:${kryoVersion}"
-    implementation "com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}"
+    implementation "com.fasterxml.jackson.core:jackson-annotations:" + project.jacksonVersion.tokenize('.')[0..1].join('.')
     implementation "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"
     implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
 
@@ -118,6 +132,10 @@ jar {
     dependsOn(configurations.fivezeroBridge)
     dependsOn(configurations.fivezeroTypes)
 
+    dependsOn(configurations.hcdtwozero)
+    dependsOn(configurations.hcdtwozeroBridge)
+    dependsOn(configurations.hcdtwozeroTypes)
+
     exclude('META-INF/*')
     into('bridges') {
         from(configurations.fourzero.singleFile)
@@ -127,6 +145,10 @@ jar {
         from(configurations.fivezero.singleFile)
         from(configurations.fivezeroBridge.singleFile)
         from(configurations.fivezeroTypes.singleFile)
+
+        from(configurations.hcdtwozero.singleFile)
+        from(configurations.hcdtwozeroBridge.singleFile)
+        from(configurations.hcdtwozeroTypes.singleFile)
     }
 }
 
