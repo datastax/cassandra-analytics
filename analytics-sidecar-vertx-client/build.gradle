@@ -38,6 +38,14 @@ configurations {
     all*.exclude(group: 'ch.qos.logback')
 }
 
+configurations.configureEach {
+    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+        if (details.requested.group == 'io.netty' && !details.requested.name.contains('tcnative')) {
+            details.useVersion "${project.nettyVersion}"
+        }
+    }
+}
+
 dependencies {
     api(project(':analytics-sidecar-client'))
 
