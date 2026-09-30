@@ -18,9 +18,9 @@
  */
 
 ext {
-    // Upgrade Jackson from 2.15.2 to resolve CVEs
-    jacksonVersion="2.21.5"
-    jacksonScalaModuleVersion="2.21.5"
+    // Upgrade Jackson from 2.22.2 to resolve CVEs
+    jacksonVersion="2.22.2"
+    jacksonScalaModuleVersion="2.22.2"
     scalaMajorVersion="2.13"
     scalaVersion="2.13.8"
     sparkGroupId="org.apache.spark"
