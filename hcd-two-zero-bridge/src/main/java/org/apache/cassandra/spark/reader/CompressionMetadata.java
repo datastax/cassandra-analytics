@@ -56,7 +56,7 @@ public class CompressionMetadata extends AbstractCompressionMetadata
             this.constructor = org.apache.cassandra.io.compress.CompressionMetadata.class
                                .getDeclaredConstructor(File.class, CompressionParams.class,
                                                        org.apache.cassandra.io.compress.CompressionMetadata.ChunkOffsetMemory.class,
-                                                       long.class, long.class, int.class, int.class, boolean.class);
+                                                       long.class, long.class, int.class, int.class);
             this.constructor.setAccessible(true);
         }
         catch (Exception e)
@@ -150,7 +150,7 @@ public class CompressionMetadata extends AbstractCompressionMetadata
                                            chunkOffsetMemory,
                                            getDataLength(),
                                            compressedFileLength,
-                                           chunkLengthBits, 0, false);
+                                           chunkLengthBits, 0);
         }
         catch (Exception e)
         {
