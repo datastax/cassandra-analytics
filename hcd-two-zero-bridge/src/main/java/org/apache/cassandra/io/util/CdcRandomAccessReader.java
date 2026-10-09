@@ -181,6 +181,11 @@ public class CdcRandomAccessReader extends RandomAccessReader
             return pos;
         }
 
+        public long positionForSkip(long currentPosition, int bytesToSkip)
+        {
+            return currentPosition + bytesToSkip;
+        }
+
         // buffer holder
 
         public ByteBuffer buffer()
@@ -196,6 +201,11 @@ public class CdcRandomAccessReader extends RandomAccessReader
         public void release()
         {
             // nothing to do, we don't delete buffers before we're closed.
+        }
+
+        public long remainingBytes(long position)
+        {
+            return Math.max(0, fileLength() - position);
         }
     }
 
