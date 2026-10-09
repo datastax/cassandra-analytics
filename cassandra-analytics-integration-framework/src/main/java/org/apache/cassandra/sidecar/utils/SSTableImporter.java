@@ -207,7 +207,8 @@ public class SSTableImporter
      */
     private void drainImportQueue(ImportQueue queue)
     {
-        int successCount = 0, failureCount = 0;
+        int successCount = 0;
+        int failureCount = 0;
         InstanceMetrics instanceMetrics = null;
         AbstractMap.SimpleEntry<Promise<Void>, ImportOptions> pair;
         while ((pair = queue.poll()) != null)
@@ -417,8 +418,14 @@ public class SSTableImporter
          */
         public boolean equals(Object o)
         {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o)
+            {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass())
+            {
+                return false;
+            }
             ImportOptions options = (ImportOptions) o;
             return resetLevel == options.resetLevel
                    && clearRepaired == options.clearRepaired
@@ -678,7 +685,7 @@ public class SSTableImporter
         private final String host;
         private final int hashCode;
 
-        public ImportId(String host, String keyspace, String table)
+        ImportId(String host, String keyspace, String table)
         {
             this.host = host;
             this.hashCode = Objects.hash(host, keyspace, table);
@@ -687,8 +694,14 @@ public class SSTableImporter
         @Override
         public boolean equals(Object o)
         {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o)
+            {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass())
+            {
+                return false;
+            }
             ImportId importId = (ImportId) o;
             return hashCode == importId.hashCode
                    && Objects.equals(host, importId.host);

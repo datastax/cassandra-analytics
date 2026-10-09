@@ -122,9 +122,12 @@ public class StorageClientPool implements SdkAutoCloseable
                          .asyncConfiguration(b -> b.advancedOptions(advancedOptions));
             S3ProxyConfiguration s3ProxyConfiguration = clientConfig.proxyConfig();
             URI endpointOverride = s3ProxyConfiguration.endpointOverride();
-            if (endpointOverride != null) // set for local testing only
+            if (endpointOverride != null)
+            {
+                // set for local testing only
                 clientBuilder.endpointOverride(endpointOverride)
                              .forcePathStyle(true);
+            }
 
             AwsCrtAsyncHttpClient.Builder nettyClientBuilder = AwsCrtAsyncHttpClient.builder();
             S3ProxyConfiguration config = clientConfig.proxyConfig();
