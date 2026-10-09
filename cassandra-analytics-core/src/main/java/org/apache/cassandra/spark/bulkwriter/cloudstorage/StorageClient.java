@@ -48,8 +48,8 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.client.config.SdkAdvancedAsyncClientOption;
-import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
-import software.amazon.awssdk.http.nio.netty.ProxyConfiguration;
+import software.amazon.awssdk.http.crt.AwsCrtAsyncHttpClient;
+import software.amazon.awssdk.http.crt.ProxyConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
@@ -99,6 +99,7 @@ public class StorageClient implements AutoCloseable
         String region = storageTransportConfiguration.writeAccessConfiguration().region();
         S3AsyncClientBuilder clientBuilder = S3AsyncClient.builder()
                                                           .region(Region.of(region))
+                                                          .httpClientBuilder(AwsCrtAsyncHttpClient.builder())
                                                           .asyncConfiguration(b -> b.advancedOptions(advancedOptions));
         if (storageClientConfig.endpointOverride != null)
         {
@@ -112,12 +113,10 @@ public class StorageClient implements AutoCloseable
                                                                .port(storageClientConfig.httpsProxy.getPort())
                                                                .scheme(storageClientConfig.httpsProxy.getScheme())
                                                                .build();
-            Duration connectionAcquisitionTimeout = Duration.ofSeconds(storageClientConfig.nioHttpClientConnectionAcquisitionTimeoutSeconds);
-            clientBuilder.httpClient(NettyNioAsyncHttpClient.builder()
-                                                            .proxyConfiguration(proxyConfig)
-                                                            .connectionAcquisitionTimeout(connectionAcquisitionTimeout)
-                                                            .maxConcurrency(storageClientConfig.nioHttpClientMaxConcurrency)
-                                                            .build());
+            clientBuilder.httpClient(AwsCrtAsyncHttpClient.builder()
+                                                          .proxyConfiguration(proxyConfig)
+                                                          .maxConcurrency(storageClientConfig.nioHttpClientMaxConcurrency)
+                                                          .build());
         }
         this.client = clientBuilder.build();
         this.dataChunker = new DataChunker(storageClientConfig.maxChunkSizeInBytes);

@@ -211,6 +211,15 @@ public class VertxHttpClient implements HttpClient
         streamingClient.request(options)
                        .compose(clientRequest -> {
                            applyHeaders(clientRequest, request.headers());
+
+                           Map<String, String> customHeaders =
+                           context.customHeaders();
+
+                           if (customHeaders != null && !customHeaders.isEmpty())
+                           {
+                               applyHeaders(clientRequest, customHeaders);
+                           }
+
                            return clientRequest.send();
                        })
                        .onSuccess(response -> {
@@ -250,7 +259,7 @@ public class VertxHttpClient implements HttpClient
     @Override
     public void close()
     {
-        streamingClient.close().toCompletionStage().toCompletableFuture().join();
+        // closes streamingClient as well
         webClient.close();
     }
 

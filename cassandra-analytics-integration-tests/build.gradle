@@ -55,6 +55,7 @@ configurations {
             force("io.vertx:vertx-dropwizard-metrics:${vertxVersion}")
             force("io.vertx:vertx-web-client:${vertxVersion}")
         }
+        exclude group: 'software.amazon.awssdk', module: 'netty-nio-client'
     }
 }
 
@@ -70,7 +71,9 @@ dependencies {
 
     testImplementation(platform(group: 'software.amazon.awssdk', name:'bom', version:"${project.aswSdkVersion}"))
     testImplementation('software.amazon.awssdk:s3')
-    testImplementation('software.amazon.awssdk:netty-nio-client')
+    // switching to AWS CRT HTTP client to be able to upgrade Netty with Vertx
+    // testImplementation('software.amazon.awssdk:netty-nio-client')
+    testImplementation('software.amazon.awssdk:aws-crt-client')
     testImplementation('io.netty:netty-transport-classes-epoll') {
         version {
             // Some integration tests are failing with version 4.1.100.final due to netty bootstrapping issue in cassandra java driver.

@@ -39,6 +39,12 @@ test {
     useJUnitPlatform()
 }
 
+configurations {
+    configureEach {
+        exclude group: 'software.amazon.awssdk', module: 'netty-nio-client'
+    }
+}
+
 dependencies {
     // These dependencies (sidecar + dtest jars) must be built by running `scripts/build-dependencies.sh`
     implementation(group: 'org.apache.cassandra', name: 'sidecar-adapters-base', version: "${sidecarVersion}")
@@ -92,5 +98,10 @@ dependencies {
         exclude(group: 'io.confluent')
     }
     api(group: 'org.apache.cassandra', name: 'sidecar-server-common', version: "${sidecarVersion}")
+
     implementation project(':analytics-sidecar-vertx-client')
+
+    implementation(platform(group: 'software.amazon.awssdk', name:'bom', version:"${project.aswSdkVersion}"))
+    implementation('software.amazon.awssdk:s3')
+    implementation('software.amazon.awssdk:aws-crt-client')
 }

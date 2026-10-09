@@ -119,9 +119,15 @@ dependencies {
     }
 
     // aws sdk BOM + s3
-    implementation 'software.amazon.awssdk:s3'
-    implementation 'software.amazon.awssdk:netty-nio-client'
-    implementation platform(group: 'software.amazon.awssdk', name:'bom', version:"${project.aswSdkVersion}")
+    implementation('software.amazon.awssdk:s3') {
+        exclude group: "software.amazon.awssdk", module: "netty-nio-client"
+    }
+    // switching to AWS CRT HTTP client to be able to upgrade Netty with Vertx
+    // implementation 'software.amazon.awssdk:netty-nio-client'
+    implementation 'software.amazon.awssdk:aws-crt-client'
+    implementation platform(group: 'software.amazon.awssdk', name:'bom', version:"${project.aswSdkVersion}") {
+        exclude group: "software.amazon.awssdk", module: "netty-nio-client"
+    }
 
     compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
     compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
