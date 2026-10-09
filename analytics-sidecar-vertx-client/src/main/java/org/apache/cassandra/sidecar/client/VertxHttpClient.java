@@ -43,6 +43,8 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.file.AsyncFile;
 import io.vertx.core.file.FileSystem;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.RequestOptions;
 import io.vertx.core.file.OpenOptions;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.PoolOptions;
@@ -53,7 +55,6 @@ import io.vertx.core.net.TrustOptions;
 import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
-import io.vertx.ext.web.codec.BodyCodec;
 import org.apache.cassandra.sidecar.common.request.Request;
 import org.apache.cassandra.sidecar.common.request.UploadableRequest;
 
@@ -67,6 +68,7 @@ public class VertxHttpClient implements HttpClient
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(VertxHttpClient.class);
 
+    private final io.vertx.core.http.HttpClient streamingClient;
     protected final Vertx vertx;
     protected final WebClient webClient;
     protected final HttpClientConfig config;
@@ -87,13 +89,17 @@ public class VertxHttpClient implements HttpClient
         options = applySSLOptions(options, config);
 
         this.vertx = vertx;
-        this.webClient = WebClient.create(vertx, options, poolOptions);
+        // Share connection configuration between ordinary and streaming requests.
+        this.streamingClient = vertx.httpClientBuilder().with(options).with(poolOptions).build();
+        this.webClient = WebClient.wrap(streamingClient, options);
         this.config = config;
     }
 
-    public VertxHttpClient(Vertx vertx, WebClient webClient, HttpClientConfig config)
+    public VertxHttpClient(Vertx vertx, WebClient webClient, io.vertx.core.http.HttpClient streamingClient,
+                           HttpClientConfig config)
     {
         this.vertx = vertx;
+        this.streamingClient = streamingClient;
         this.webClient = webClient;
         this.config = config;
     }
@@ -195,36 +201,46 @@ public class VertxHttpClient implements HttpClient
                                                   StreamConsumer streamConsumer)
     {
         Objects.requireNonNull(streamConsumer, "The streamConsumer must be set");
-        HttpRequest<Buffer> vertxRequest = vertxRequest(sidecarInstance, context);
 
         LOGGER.debug("Streaming request={}, from instance={}", context.request(), sidecarInstance);
 
         Promise<HttpResponse> promise = Promise.promise();
-        vertxRequest.ssl(config.ssl())
-                    .timeout(config.timeoutMillis())
-                    .as(BodyCodec.pipe(new StreamConsumerWriteStream(streamConsumer)))
-                    .send()
-                    .onSuccess(response -> {
-                        promise.tryComplete(new HttpResponseImpl(response.statusCode(),
-                                                                 response.statusMessage(),
-                                                                 mapHeaders(response.headers()),
-                                                                 sidecarInstance));
+        Request request = context.request();
+        RequestOptions options = requestOptions(sidecarInstance, request);
 
-                        if (response.statusCode() != HttpResponseStatus.OK.code() &&
-                            response.statusCode() != HttpResponseStatus.PARTIAL_CONTENT.code())
-                        {
-                            LOGGER.warn("Unexpected status code received statusCode={}, statusMessage={}",
-                                        response.statusCode(), response.statusMessage());
+        streamingClient.request(options)
+                       .compose(clientRequest -> {
+                           applyHeaders(clientRequest, request.headers());
+                           return clientRequest.send();
+                       })
+                       .onSuccess(response -> {
+                           response.pause();
+                           HttpResponse headers = new HttpResponseImpl(response.statusCode(),
+                                                                       response.statusMessage(),
+                                                                       mapHeaders(response.headers()),
+                                                                       sidecarInstance);
+                           if (response.statusCode() != HttpResponseStatus.OK.code() &&
+                               response.statusCode() != HttpResponseStatus.PARTIAL_CONTENT.code())
+                           {
+                               LOGGER.warn("Unexpected status code received statusCode={}, statusMessage={}",
+                                           response.statusCode(), response.statusMessage());
+                               // Retry logic needs the status, but must never see error-body bytes.
+                               response.resume(); // drain and discard unsuccessful response body
+                               promise.tryComplete(headers);
+                               return;
+                           }
 
-                            streamConsumer.onError(new IllegalStateException("Unexpected status code: " + response.statusCode()));
-                        }
-                    })
-                    .onFailure(throwable -> {
-                        if (!promise.tryFail(throwable))
-                        {
-                            streamConsumer.onError(throwable);
-                        }
-                    });
+                           // Publish the accepted headers before delivering any body data.
+                           promise.tryComplete(headers);
+                           response.pipeTo(new StreamConsumerWriteStream(streamConsumer))
+                                   .onFailure(streamConsumer::onError);
+                       })
+                       .onFailure(throwable -> {
+                           if (!promise.tryFail(throwable))
+                           {
+                               streamConsumer.onError(throwable);
+                           }
+                       });
         return promise.future().toCompletionStage().toCompletableFuture();
     }
 
@@ -234,6 +250,7 @@ public class VertxHttpClient implements HttpClient
     @Override
     public void close()
     {
+        streamingClient.close().toCompletionStage().toCompletableFuture().join();
         webClient.close();
     }
 
@@ -257,6 +274,16 @@ public class VertxHttpClient implements HttpClient
         return vertxRequest;
     }
 
+    protected RequestOptions requestOptions(SidecarInstance sidecarInstance, Request request)
+    {
+        return new RequestOptions().setMethod(HttpMethod.valueOf(request.method().name()))
+                                   .setHost(sidecarInstance.hostname())
+                                   .setPort(sidecarInstance.port())
+                                   .setURI(request.requestURI())
+                                   .setSsl(config.ssl())
+                                   .setTimeout(config.timeoutMillis());
+    }
+
     protected HttpRequest<Buffer> applyHeaders(HttpRequest<Buffer> vertxRequest, Map<String, String> headers)
     {
         applyAuthHeader(vertxRequest);
@@ -273,7 +300,35 @@ public class VertxHttpClient implements HttpClient
         return vertxRequest;
     }
 
+    protected HttpClientRequest applyHeaders(HttpClientRequest vertxRequest, Map<String, String> headers)
+    {
+        applyAuthHeader(vertxRequest);
+        vertxRequest = vertxRequest.putHeader("User-Agent", config.userAgent());
+
+        if (headers == null || headers.isEmpty())
+        {
+            return vertxRequest;
+        }
+
+        for (Map.Entry<String, String> header : headers.entrySet())
+        {
+            vertxRequest = vertxRequest.putHeader(header.getKey(), header.getValue());
+        }
+        return vertxRequest;
+    }
+
     private HttpRequest<Buffer> applyAuthHeader(HttpRequest<Buffer> vertxRequest)
+    {
+        if (isNullOrEmpty(config.cassandraRole()))
+        {
+            return vertxRequest;
+        }
+
+        vertxRequest = vertxRequest.putHeader(AUTH_ROLE, config.cassandraRole());
+        return vertxRequest;
+    }
+
+    private HttpClientRequest applyAuthHeader(HttpClientRequest vertxRequest)
     {
         if (isNullOrEmpty(config.cassandraRole()))
         {

@@ -29,6 +29,7 @@ import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.PoolOptions;
 import io.vertx.core.net.ClientSSLOptions;
 import io.vertx.core.net.OpenSSLEngineOptions;
@@ -64,6 +65,7 @@ public class SidecarClientProvider implements Provider<SidecarClient>
     private final SidecarVersionProvider sidecarVersionProvider;
     private final SidecarClient client;
     private final WebClient webClient;
+    private final HttpClient streamingClient;
 
     private final AtomicBoolean isClosing = new AtomicBoolean(false);
     private final WebClientOptions webClientOptions;
@@ -83,6 +85,7 @@ public class SidecarClientProvider implements Provider<SidecarClient>
         this.webClientOptions = webClientOptions(sidecarClientConfiguration);
         this.poolOptions = poolOptions(sidecarClientConfiguration);
         this.webClient = WebClient.create(vertx, webClientOptions, poolOptions);
+        this.streamingClient = vertx.httpClientBuilder().with(webClientOptions).with(poolOptions).build();
         this.client = initializeSidecarClient(sidecarClientConfiguration);
     }
 
@@ -123,7 +126,7 @@ public class SidecarClientProvider implements Provider<SidecarClient>
                                             .userAgent("cassandra-sidecar/" + sidecarVersionProvider.sidecarVersion())
                                             .build();
 
-        VertxHttpClient vertxHttpClient = new VertxHttpClient(vertx, webClient, httpClientConfig);
+        VertxHttpClient vertxHttpClient = new VertxHttpClient(vertx, webClient, streamingClient, httpClientConfig);
         RetryPolicy defaultRetryPolicy = new ExponentialBackoffRetryPolicy(clientConfig.maxRetries(),
                                                                            clientConfig.retryDelay().toMillis(),
                                                                            clientConfig.maxRetryDelay().toMillis());
