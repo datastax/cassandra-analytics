@@ -69,6 +69,7 @@ dependencies {
         exclude group: 'junit', module: 'junit'
     }
     implementation("io.vertx:vertx-web-client:${project.vertxVersion}")
+    implementation("io.vertx:vertx-dropwizard-metrics:${project.vertxVersion}")
     implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.14.3')
 
     // Bouncycastle dependencies for test certificate provisioning
@@ -91,4 +92,5 @@ dependencies {
         exclude(group: 'io.confluent')
     }
     api(group: 'org.apache.cassandra', name: 'sidecar-server-common', version: "${sidecarVersion}")
+    implementation project(':analytics-sidecar-vertx-client')
 }

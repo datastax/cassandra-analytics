@@ -21,7 +21,7 @@ package org.apache.cassandra.sidecar.client;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import io.vertx.core.buffer.impl.BufferImpl;
+import io.vertx.core.buffer.Buffer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -46,17 +46,17 @@ class StreamConsumerWriteStreamTest
     @Test
     void testWrite()
     {
-        streamConsumerWriteStream.write(BufferImpl.buffer("consume me"));
-        streamConsumerWriteStream.write(BufferImpl.buffer("me too"), p -> {
-        });
+        streamConsumerWriteStream.write(Buffer.buffer("consume me"))
+                                 .toCompletionStage().toCompletableFuture().join();
+        streamConsumerWriteStream.write(Buffer.buffer("me too"))
+                                 .toCompletionStage().toCompletableFuture().join();
         verify(mockStreamConsumer, times(2)).onRead(any(VertxStreamBuffer.class));
     }
 
     @Test
     void testEndStream()
     {
-        streamConsumerWriteStream.end(p -> {
-        });
+        streamConsumerWriteStream.end().toCompletionStage().toCompletableFuture().join();
         verify(mockStreamConsumer, times(1)).onComplete();
     }
 }

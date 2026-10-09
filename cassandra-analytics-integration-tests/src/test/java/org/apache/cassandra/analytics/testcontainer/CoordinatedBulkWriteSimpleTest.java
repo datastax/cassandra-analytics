@@ -47,6 +47,7 @@ import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl.Builder
 import org.apache.cassandra.sidecar.db.schema.SidecarSchema;
 import org.apache.cassandra.sidecar.modules.SidecarModules;
 import org.apache.cassandra.sidecar.server.Server;
+import org.apache.cassandra.sidecar.testing.AnalyticsVertxModule;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.sidecar.testing.SharedClusterIntegrationTestBase.IntegrationTestModule;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
@@ -147,7 +148,8 @@ public class CoordinatedBulkWriteSimpleTest extends CoordinatedWriteTestBase
                                                               mtlsTestHelper,
                                                               dnsResolver,
                                                               sidecarConfigurator);
-        sidecarServerInjector = Guice.createInjector(Modules.override(SidecarModules.all()).with(testModule));
+        sidecarServerInjector = Guice.createInjector(Modules.override(SidecarModules.all())
+                                                            .with(testModule, new AnalyticsVertxModule()));
 
         Server sidecarServer = sidecarServerInjector.getInstance(Server.class);
         sidecarServer.start().onFailure(context::failNow);

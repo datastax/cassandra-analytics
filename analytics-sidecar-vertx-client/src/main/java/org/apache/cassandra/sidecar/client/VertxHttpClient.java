@@ -45,6 +45,7 @@ import io.vertx.core.file.AsyncFile;
 import io.vertx.core.file.FileSystem;
 import io.vertx.core.file.OpenOptions;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.PoolOptions;
 import io.vertx.core.net.KeyCertOptions;
 import io.vertx.core.net.KeyStoreOptions;
 import io.vertx.core.net.OpenSSLEngineOptions;
@@ -52,7 +53,6 @@ import io.vertx.core.net.TrustOptions;
 import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
-import io.vertx.ext.web.client.predicate.ResponsePredicateResult;
 import io.vertx.ext.web.codec.BodyCodec;
 import org.apache.cassandra.sidecar.common.request.Request;
 import org.apache.cassandra.sidecar.common.request.UploadableRequest;
@@ -74,7 +74,6 @@ public class VertxHttpClient implements HttpClient
     public VertxHttpClient(Vertx vertx, HttpClientConfig config)
     {
         WebClientOptions options = new WebClientOptions()
-                                   .setMaxPoolSize(config.maxPoolSize())
                                    .setIdleTimeout(config.idleTimeoutMillis())
                                    .setIdleTimeoutUnit(TimeUnit.MILLISECONDS)
                                    .setMaxChunkSize(config.maxChunkSize())
@@ -82,10 +81,13 @@ public class VertxHttpClient implements HttpClient
                                    .setConnectTimeout((int) config.timeoutMillis())
                                    .setUserAgent(config.userAgent());
 
+        PoolOptions poolOptions = new PoolOptions()
+                                  .setHttp1MaxSize(config.maxPoolSize());
+
         options = applySSLOptions(options, config);
 
         this.vertx = vertx;
-        this.webClient = WebClient.create(vertx, options);
+        this.webClient = WebClient.create(vertx, options, poolOptions);
         this.config = config;
     }
 
@@ -200,34 +202,26 @@ public class VertxHttpClient implements HttpClient
         Promise<HttpResponse> promise = Promise.promise();
         vertxRequest.ssl(config.ssl())
                     .timeout(config.timeoutMillis())
-                    .expect(response -> {
+                    .as(BodyCodec.pipe(new StreamConsumerWriteStream(streamConsumer)))
+                    .send()
+                    .onSuccess(response -> {
+                        promise.tryComplete(new HttpResponseImpl(response.statusCode(),
+                                                                 response.statusMessage(),
+                                                                 mapHeaders(response.headers()),
+                                                                 sidecarInstance));
 
-                        // fulfill the promise with the response
-                        promise.complete(new HttpResponseImpl(response.statusCode(),
-                                                              response.statusMessage(),
-                                                              mapHeaders(response.headers()),
-                                                              sidecarInstance));
-
-                        if (response.statusCode() == HttpResponseStatus.OK.code() ||
-                            response.statusCode() == HttpResponseStatus.PARTIAL_CONTENT.code())
-                        {
-                            return ResponsePredicateResult.success();
-                        }
-                        else
+                        if (response.statusCode() != HttpResponseStatus.OK.code() &&
+                            response.statusCode() != HttpResponseStatus.PARTIAL_CONTENT.code())
                         {
                             LOGGER.warn("Unexpected status code received statusCode={}, statusMessage={}",
                                         response.statusCode(), response.statusMessage());
-                            return ResponsePredicateResult.failure("Unexpected status code: " +
-                                                                   response.statusCode());
+
+                            streamConsumer.onError(new IllegalStateException("Unexpected status code: " + response.statusCode()));
                         }
                     })
-                    .as(BodyCodec.pipe(new StreamConsumerWriteStream(streamConsumer)))
-                    .send()
                     .onFailure(throwable -> {
                         if (!promise.tryFail(throwable))
                         {
-                            // the stream has already started, we need to signal the consumer that the
-                            // there was a failure mid-stream. This is a non-retryable case
                             streamConsumer.onError(throwable);
                         }
                     });
@@ -332,7 +326,7 @@ public class VertxHttpClient implements HttpClient
         if (OpenSSLEngineOptions.isAvailable())
         {
             LOGGER.info("Building Sidecar vertx client with OpenSSL");
-            options = options.setOpenSslEngineOptions(new OpenSSLEngineOptions());
+            options = options.setSslEngineOptions(new OpenSSLEngineOptions());
         }
         else
         {

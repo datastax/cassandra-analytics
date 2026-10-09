@@ -378,7 +378,8 @@ public abstract class SharedClusterIntegrationTestBase
         VertxTestContext context = new VertxTestContext();
         AbstractModule testModule = new IntegrationTestModule(instances, classLoaderWrapper, mtlsTestHelper,
                                                               dnsResolver, configurationOverrides());
-        sidecarServerInjector = Guice.createInjector(Modules.override(SidecarModules.all()).with(testModule));
+        sidecarServerInjector = Guice.createInjector(Modules.override(SidecarModules.all())
+                                                            .with(testModule, new AnalyticsVertxModule()));
         Server sidecarServer = sidecarServerInjector.getInstance(Server.class);
         sidecarServer.start()
                      .onSuccess(s -> context.completeNow())

@@ -18,7 +18,6 @@
 
 package org.apache.cassandra.sidecar.client;
 
-import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
@@ -50,27 +49,28 @@ public class StreamConsumerWriteStream implements WriteStream<Buffer>
     @Override
     public Future<Void> write(Buffer data)
     {
-        streamConsumer.onRead(new VertxStreamBuffer(data));
-        return Future.succeededFuture();
-    }
-
-    @Override
-    public void write(Buffer data, Handler<AsyncResult<Void>> handler)
-    {
-        streamConsumer.onRead(new VertxStreamBuffer(data));
-        if (handler != null)
+        try
         {
-            handler.handle(Future.succeededFuture());
+            streamConsumer.onRead(new VertxStreamBuffer(data));
+            return Future.succeededFuture();
+        }
+        catch (Exception e)
+        {
+            return Future.failedFuture(e);
         }
     }
 
     @Override
-    public void end(Handler<AsyncResult<Void>> handler)
+    public Future<Void> end()
     {
-        streamConsumer.onComplete();
-        if (handler != null)
+        try
         {
-            handler.handle(Future.succeededFuture());
+            streamConsumer.onComplete();
+            return Future.succeededFuture();
+        }
+        catch (Exception e)
+        {
+            return Future.failedFuture(e);
         }
     }
 
