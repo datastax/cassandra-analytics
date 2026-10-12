@@ -42,6 +42,14 @@ configurations {
     all*.exclude(group: 'ch.qos.logback')
 }
 
+configurations.configureEach {
+    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+        if (details.requested.group == 'io.netty' && !details.requested.name.contains('tcnative')) {
+            details.useVersion "${project.nettyVersion}"
+        }
+    }
+}
+
 dependencies {
     shadow(group: 'org.slf4j', name: 'slf4j-api', version: "${project.slf4jApiVersion}")
     implementation(project(':analytics-sidecar-vertx-client'))
